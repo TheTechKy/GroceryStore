@@ -8,7 +8,8 @@ import java.util.Iterator;
 /**
  * Class Member represents a single member of a small co-op grocery store.
  * 
- * @author
+ * @author Ben Hines, Carter Clark, Chris Lara-Batencourt, Pavel Danek, Ricky
+ *         Nguyen
  *
  */
 public class Member implements Serializable {
@@ -22,9 +23,6 @@ public class Member implements Serializable {
 	private String id;
 	private ArrayList<Transaction> transactions;
 
-	// static field necessary for generating member IDs automatically
-	private static int idCounter = 1;
-
 	/**
 	 * The constructor. At the time of creation of a member object a list of his/her
 	 * transactions (checkouts) is created as well.
@@ -37,13 +35,13 @@ public class Member implements Serializable {
 	 *                    today's date to the member; the date is assigned by user
 	 * @param feePaid     - membership fee the new member paid
 	 */
-	public Member(String name, String address, String phoneNumber, Calendar dateJoined, double feePaid) {
+	public Member(String name, String address, String phoneNumber, Calendar dateJoined, double feePaid, int idCounter) {
 		this.name = name;
 		this.address = address;
 		this.phoneNumber = phoneNumber;
 		this.dateJoined = dateJoined;
 		this.feePaid = feePaid;
-		this.id = "M-" + idCounter++;
+		this.id = "M-" + idCounter;
 		transactions = new ArrayList<Transaction>();
 	}
 
@@ -116,60 +114,6 @@ public class Member implements Serializable {
 			}
 		}
 		return output.iterator();
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((address == null) ? 0 : address.hashCode());
-		result = prime * result + ((dateJoined == null) ? 0 : dateJoined.hashCode());
-		long temp;
-		temp = Double.doubleToLongBits(feePaid);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
-		result = prime * result + ((id == null) ? 0 : id.hashCode());
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((phoneNumber == null) ? 0 : phoneNumber.hashCode());
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object object) {
-		if (this == object)
-			return true;
-		if (object == null)
-			return false;
-		if (getClass() != object.getClass())
-			return false;
-		Member other = (Member) object;
-		if (address == null) {
-			if (other.address != null)
-				return false;
-		} else if (!address.equals(other.address))
-			return false;
-		if (dateJoined == null) {
-			if (other.dateJoined != null)
-				return false;
-		} else if (!dateJoined.equals(other.dateJoined))
-			return false;
-		if (Double.doubleToLongBits(feePaid) != Double.doubleToLongBits(other.feePaid))
-			return false;
-		if (id == null) {
-			if (other.id != null)
-				return false;
-		} else if (!id.equals(other.id))
-			return false;
-		if (name == null) {
-			if (other.name != null)
-				return false;
-		} else if (!name.equals(other.name))
-			return false;
-		if (phoneNumber == null) {
-			if (other.phoneNumber != null)
-				return false;
-		} else if (!phoneNumber.equals(other.phoneNumber))
-			return false;
-		return true;
 	}
 
 	@Override

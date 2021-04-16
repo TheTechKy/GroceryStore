@@ -1,6 +1,7 @@
 package ui;
 
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
@@ -19,7 +20,8 @@ import store.tests.AutomatedTester;
  * which is free of any business logic itself, to keep the safety at maximum.
  * This class is a singleton.
  * 
- * @author
+ * @author Ben Hines, Carter Clark, Chris Lara-Batencourt, Pavel Danek, Ricky
+ *         Nguyen
  *
  */
 public class UserInterface implements Serializable {
@@ -174,45 +176,6 @@ public class UserInterface implements Serializable {
 	}
 
 	/**
-	 * Collects a date input from the user. Requires an input in format MMDDYYYY.
-	 * 
-	 * @param prompt       - a custom message prompting for a date input
-	 * @param errorMessage - a custom error message in case of invalid input
-	 * @return date entered by user (type Calendar)
-	 */
-	public static Calendar getDate(String prompt, String errorMessage) {
-		String read = "";
-		boolean error = true;
-		Calendar date = new GregorianCalendar();
-		int month = 0;
-		int day = 0;
-		int year = 0;
-		while (error) {
-			error = false;
-			read = getString(prompt + " (MMDDYYYY) ");
-			if (read.length() < 8) {
-				error = true;
-			} else {
-				try {
-					month = Integer.parseInt(read.substring(0, 2));
-					day = Integer.parseInt(read.substring(2, 4));
-					year = Integer.parseInt(read.substring(4, 8));
-				} catch (Exception exception) {
-					error = true;
-				}
-			}
-			if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1800) {
-				error = true;
-			}
-			if (error) {
-				System.out.println(errorMessage);
-			}
-		}
-		date.set(year, month - 1, day);
-		return date;
-	}
-
-	/**
 	 * Collects a yes-or-no input from the user. If the first letter of the response
 	 * (trimmed of the leading and trailing spaces) is "Y" or "N" (case
 	 * NON-sensitive) it will return corresponding answer.
@@ -267,21 +230,41 @@ public class UserInterface implements Serializable {
 	/**
 	 * Retrieves the grocery store data from the disk.
 	 */
-	public static void load() {
+	public static boolean load() throws Exception {
+		if (singleton == null) {
+			groceryStore = GroceryStore.load();
+			if (groceryStore == null) {
+				System.out.println("No '" + GroceryStore.BACKUP_FILE_NAME
+						+ "' present in your current\nworking folder or the file is unreadable.");
+				return false;
+			}
+			instance();
+			return true;
+		} else {
+			System.out.println("Grocery Store data are already in place and cannot be overwritten.\n"
+					+ "If you want to load the data from the disk,\nchoose that option at the start of the program.");
+			return false;
+		}
 	}
 
 	/**
 	 * Saves the grocery data to the disk.
 	 */
-	public void save() {
+	public void save() throws Exception {
+		if (GroceryStore.save(groceryStore)) {
+			System.out.println(
+					"The Grocery Store data have been saved to a file '" + GroceryStore.BACKUP_FILE_NAME + "'.");
+		} else
+			System.out.println("Data could not be saved.");
 	}
 
 	/**
 	 * Runs a test bed with predetermined sets of data applied on the grocery store.
 	 */
 	public void testBed() {
+
 		new AutomatedTester().testAll();
-		System.out.println("Testing successful, Grocery Store updated.");
+		System.out.println("Grocery Store updated.");
 	}
 
 	/**
@@ -370,7 +353,7 @@ public class UserInterface implements Serializable {
 	}
 
 	/**
-	 * Performs a member's checkout. ("Buying items".)
+	 * Performs a member's checkout. (A member buys items from the grocery store.)
 	 */
 	public void checkOut() {
 		String memberId = getString("\nEnter member's ID (M-<number>): ");
@@ -416,10 +399,10 @@ public class UserInterface implements Serializable {
 			if (getYesOrNo("Transaction confirmed by collecting cash?")) {
 				System.out.println("Checkout successful. We thank you.");
 				// performing checkout close, which adds a transaction ( = checkout) to member's
-				// history and reorders product(s) which got low in supply if necessary;
+				// history and reorders product(s) which got low in supply, if necessary;
 				// returned is an iterator over a list of products (stored in a list of results
-				// for safety) that were reordered (to display) - if the list is empty no
-				// product had to be reordered
+				// for safety) that were reordered - if the list is empty no product had to be
+				// reordered
 				Iterator<Result> iterator = checkOut.closeCheckOut();
 				if (iterator.hasNext()) {
 					System.out.println();
@@ -502,8 +485,8 @@ public class UserInterface implements Serializable {
 	}
 
 	/**
-	 * Lists all products that start with a given name and displays their name, id,
-	 * price, stock in hand, and reorder level.
+	 * Lists all products that start with a given string and displays their name,
+	 * id, price, stock in hand, and reorder level.
 	 */
 	public void getProductInfo() {
 		String name = getString("Enter product's name: ");
@@ -524,7 +507,7 @@ public class UserInterface implements Serializable {
 	}
 
 	/**
-	 * Lists all members that start with a given name and displays their address,
+	 * Lists all members that start with a given string and displays their address,
 	 * fee paid, and id
 	 */
 	public void getMemberInfo() {
@@ -545,10 +528,199 @@ public class UserInterface implements Serializable {
 		}
 	}
 
+	/**
+	 * Takes from the user a member ID, a starting date, an ending date and finds
+	 * all transactions with given member ID between given dates.
+	 */
 	public void printTransactions() {
+		boolean sentinel = false;
+		String userInput = "";
+		String memberId = "";
+		Result member = null;
+		Calendar startingDate = Calendar.getInstance();
+		Calendar endingDate = Calendar.getInstance();
+		SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+
+		// Loop the opportunity to input member ID until valid member ID is found or the
+		// user exits.
+		do {
+			userInput = getString("\nEnter 'END' any time to exit this option. \nInput member ID: ");
+			Iterator<Result> iterator = groceryStore.getAllMembers();
+
+			// Find the supposed member given by user input or exit the loop in the event of
+			// 'END'
+			if (userInput.equalsIgnoreCase("END")) {
+
+				break;
+			} else {
+				for (Iterator<Result> counter = iterator; counter.hasNext();) {
+					Result result = counter.next();
+
+					if (result.getMemberId().equalsIgnoreCase(userInput)) {
+
+						memberId = userInput;
+						member = result;
+						System.out.println("Member found.");
+						// We found a member matching user input, so stop looking for others.
+						sentinel = true;
+						break;
+					}
+					if (!counter.hasNext()) {
+						// If you've managed to get here, there's no matching member.
+						System.out.println(
+								"No member with ID " + userInput + " found. Try again or enter 'END' to exit...");
+					}
+				}
+			}
+
+			// Sentinel set to true when a Member ID is input that matches one existing in
+			// the database.
+		} while (!sentinel);
+		// Now get the starting and ending dates...
+		if (!userInput.equalsIgnoreCase("END")) {
+
+			sentinel = false;
+			// Get starting date. Loops until a parse-able date is input or the user exits.
+			do {
+				userInput = getString("Input starting date for transactions (mm/dd/yyyy format):");
+
+				// If the user entered 'END' exit the loop, else continue
+				if (userInput.equalsIgnoreCase("END")) {
+
+					break;
+				} else {
+					// Try to parse user input as a Calendar object in the given format
+					try {
+						startingDate.setTime(dateFormat.parse(userInput));
+						// If you made it here, you input a parse-able date and can exit the loop.
+						sentinel = true;
+						break;
+					} catch (Exception e) {
+						System.out.println(
+								"Cannot parse " + userInput + " as a date. Try again or enter 'END' to exit...");
+					}
+				}
+			} while (!sentinel);
+		}
+
+		// Get ending date. Loops until a parse-able date is input or the user exits.
+		if (!userInput.toString().equalsIgnoreCase("END")) {
+			sentinel = false;
+			do {
+				userInput = getString(
+						"Input ending date. Ending date must not precede starting date chronologically. (mm/dd/yyyy format): ");
+				if (userInput.equalsIgnoreCase("END")) {
+
+					break;
+				} else {
+					// Try to parse user input as a Calendar object in the given format
+					try {
+						endingDate.setTime(dateFormat.parse(userInput));
+
+						// Check if the ending date is actually after the starting date.
+						if (!endingDate.before(startingDate)) {
+							sentinel = true;
+							break;
+						} else {
+							System.out.println("Error: Ending date precedes starting date chronologically. Try again.");
+
+						}
+
+					} catch (Exception e) {
+						System.out.println(
+								"Cannot parse " + userInput + " as a date. Try again or enter 'END' to exit...");
+					}
+				}
+			} while (!sentinel);
+		}
+		int matchesCount = 0;
+		// Now find matching transactions for the given user input
+		if (!userInput.toString().equals("END") && sentinel) {
+			System.out.println(
+					"\nTransactions for member ID " + memberId + " bewteen " + dateFormat.format(startingDate.getTime())
+							+ " and " + dateFormat.format(endingDate.getTime()) + ":");
+
+			Iterator<Result> iterator = groceryStore.getMemberTransactions(member, startingDate, endingDate);
+			if (iterator.hasNext()) {
+				for (Iterator<Result> counter = iterator; counter.hasNext();) {
+					Result result = counter.next();
+					matchesCount++;
+					System.out.println("-".repeat(66) + "\n" + "-".repeat(66));
+					System.out.println("Transaction " + matchesCount);
+					System.out.println("-".repeat(13));
+					System.out
+							.println("Date: " + String.format(dateFormat.format(result.getTransactionDate().getTime()))
+									+ "\n" + String.format("%-25s", "Product") + "  "
+									+ String.format("%-13s", "Quantity") + "  " + String.format("%-13s", "Price"));
+					Iterator<Result> itemIterator = groceryStore.getTransactionItems(result);
+					if (itemIterator.hasNext()) {
+						for (Iterator<Result> itemCounter = itemIterator; itemCounter.hasNext();) {
+							Result itemResult = itemCounter.next();
+							System.out.println(String.format("%-27s", itemResult.getProductName())
+									+ String.format("%-15s", itemResult.getItemQuantity())
+									+ String.format("$%.2f%-13s", itemResult.getItemPrice(), ""));
+						}
+					} else {
+						System.out.println("This transaction has no items.");
+					}
+					System.out
+							.println(String.format(String.format("%-25s", fittedString(result.getProductName(), 25))));
+					System.out.println(String.format("Total: $%.2f", result.getTotalPrice()));
+				}
+				if (matchesCount == 0) {
+					System.out.println("No matching transactions found.");
+				}
+				System.out.println("-".repeat(66) + "\n" + "-".repeat(66));
+			} else {
+				System.out.println("No transactions found in database");
+			}
+		}
 	}
 
+	/**
+	 * A helper method which trims a String to a given maximum length. If the given
+	 * String is shorter it's returned unchanged. Useful for formatted printing into
+	 * tables.
+	 * 
+	 * @param input     - String being trimmed
+	 * @param maxLength - the max length of the returned String
+	 * @return the String with the end properly trimmed to a certain length
+	 */
+	private String fittedString(String input, int maxLength) {
+		if (input.length() > maxLength) {
+			return input.substring(0, maxLength);
+		} else {
+			return input;
+		}
+
+	}
+
+	/**
+	 * Print out order number, product name, product Id, quantity, and date of order
+	 * for all outstanding orders
+	 */
 	public void listOutstandingOrders() {
+		Iterator<Result> iterator = groceryStore.getAllOrders();
+		if (iterator.hasNext()) {
+			System.out.println("\n" + String.format("%-10s", "Order") + "  " + String.format("%-28s", "Product Name")
+					+ "  " + String.format("%-17s", "Product ID") + "  " + String.format("%-35s", "Date of Order")
+					+ "  " + String.format("%-13s", "Quantity"));
+			System.out.println("-".repeat(106));
+			for (Iterator<Result> counter = iterator; counter.hasNext();) {
+				Result result = counter.next();
+				// If the order's isOutstanding is True, print its details
+				if (result.getIsOutstanding()) {
+					System.out.println(String.format("%-10s", result.getOrderId()) + "  "
+							+ String.format("%-25s", fittedString(result.getProductName(), 25)) + "  "
+							+ String.format("%13s", result.getProductId()) + "  "
+							+ String.format("%35s", result.getDateOfOrder().getTime().toString()) + "  "
+							+ String.format("%13s", result.getOrderQuantity()));
+				}
+			}
+		} else {
+			// in case the order database is empty
+			System.out.println("No orders in the database.");
+		}
 	}
 
 	/**
@@ -568,21 +740,9 @@ public class UserInterface implements Serializable {
 			// for loop prints all members
 			for (Iterator<Result> counter = iterator; counter.hasNext();) {
 				Result result = counter.next();
-				// fields fittedName and fittedAddress store trimmed off versions of name and
-				// address to fit in the table in case they're too long
-				String fittedName, fittedAddress;
-				if (result.getMemberName().length() > 23) {
-					fittedName = result.getMemberName().substring(0, 23);
-				} else {
-					fittedName = result.getMemberName();
-				}
-				if (result.getMemberAddress().length() > 28) {
-					fittedAddress = result.getMemberAddress().substring(0, 28);
-				} else {
-					fittedAddress = result.getMemberAddress();
-				}
 				System.out.println(String.format("%-9s", result.getMemberId()) + "  "
-						+ String.format("%-23s", fittedName) + "  " + String.format("%-28s", fittedAddress) + "  "
+						+ String.format("%-23s", fittedString(result.getMemberName(), 23)) + "  "
+						+ String.format("%-28s", fittedString(result.getMemberAddress(), 28)) + "  "
 						+ String.format("%-11s", result.getMemberPhoneNumber()) + "  "
 						+ String.format("%1$tm/%1$td/%1$tY", result.getMemberDateJoined()));
 			}
@@ -606,19 +766,11 @@ public class UserInterface implements Serializable {
 			// for loop prints all products
 			for (Iterator<Result> counter = iterator; counter.hasNext();) {
 				Result result = counter.next();
-				// field fittedName stores trimmed off version of product name to fit in the
-				// table in case it's too long
-				String fittedName;
-				if (result.getProductName().length() > 25) {
-					fittedName = result.getProductName().substring(0, 25);
-				} else {
-					fittedName = result.getProductName();
-				}
-				System.out.println(
-						String.format("%-10s", result.getProductId()) + "  " + String.format("%-25s", fittedName) + "  "
-								+ String.format("%13.2f", result.getProductCurrentPrice()) + "  "
-								+ String.format("%13s", result.getProductStockOnHand()) + "  "
-								+ String.format("%13s", result.getProductReorderLevel()));
+				System.out.println(String.format("%-10s", result.getProductId()) + "  "
+						+ String.format("%-25s", fittedString(result.getProductName(), 25)) + "  "
+						+ String.format("%13.2f", result.getProductCurrentPrice()) + "  "
+						+ String.format("%13s", result.getProductStockOnHand()) + "  "
+						+ String.format("%13s", result.getProductReorderLevel()));
 			}
 		} else {
 			// in case the product database is empty
@@ -629,7 +781,7 @@ public class UserInterface implements Serializable {
 	/**
 	 * Performs the main looping around the commands being issued by the user.
 	 */
-	public void loop() {
+	public void loop() throws Exception {
 		int action;
 		help();
 		do {
@@ -684,7 +836,7 @@ public class UserInterface implements Serializable {
 				System.out.println("Not a valid option number.");
 				break;
 			}
-		} while (action != 0);
+		} while (action != EXIT);
 	}
 
 	/**
@@ -694,13 +846,20 @@ public class UserInterface implements Serializable {
 	 * 
 	 * @param args N/A
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
+		boolean loaded = false;
+		boolean wantsToLoad = false;
 		System.out.println("★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★");
 		System.out.println("★★★ WELCOME TO OUR GROCERY STORE ★★★");
 		System.out.println("★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★\n");
-		if (getYesOrNo("Would you like to load Store data from the disk?")) {
-			load();
-		} else {
+		wantsToLoad = getYesOrNo("Would you like to load Store data from the disk?");
+		if (wantsToLoad) {
+			loaded = load();
+		}
+		if (loaded) {
+			System.out.println("Grocery Store updated.");
+		}
+		if (!loaded || !wantsToLoad) {
 			instance();
 			System.out.println();
 			if (getYesOrNo("Do you wish to generate a test bed and\ninvoke the functionality using asserts?")) {

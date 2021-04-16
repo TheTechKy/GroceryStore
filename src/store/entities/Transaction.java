@@ -12,7 +12,8 @@ import java.util.Iterator;
  * receipt in a grocery store with a list of items on it. It is used to keep
  * track of member's transactions and as an entity for a checkout.
  * 
- * @author
+ * @author Ben Hines, Carter Clark, Chris Lara-Batencourt, Pavel Danek, Ricky
+ *         Nguyen
  *
  */
 public class Transaction implements Serializable {
@@ -21,6 +22,7 @@ public class Transaction implements Serializable {
 	private Calendar date;
 	private ArrayList<Item> itemsList;
 	private double totalPrice;
+	private String memberId;
 
 	/**
 	 * The constructor. At the point of creation of a transaction, the date and time
@@ -52,6 +54,14 @@ public class Transaction implements Serializable {
 		return totalPrice;
 	}
 
+	public void setMemberId(String memberId) {
+		this.memberId = memberId;
+	}
+
+	public String getMemberId() {
+		return memberId;
+	}
+
 	/**
 	 * Adds a new checkout item into the transaction and updates the totalPrice.
 	 * 
@@ -71,7 +81,17 @@ public class Transaction implements Serializable {
 	 *         FALSE if otherwise
 	 */
 	public boolean isBetweenDates(Calendar firstDate, Calendar secondDate) {
-		return (date.after(firstDate) && date.before(secondDate));
+		// Set maximum and minimum possible values in the dates to allow inclusion of
+		// all times within those days
+		firstDate.set(Calendar.MILLISECOND, 0);
+		firstDate.set(Calendar.SECOND, 0);
+		firstDate.set(Calendar.MINUTE, 0);
+		firstDate.set(Calendar.HOUR, 0);
+		secondDate.set(Calendar.MILLISECOND, 99);
+		secondDate.set(Calendar.SECOND, 59);
+		secondDate.set(Calendar.MINUTE, 59);
+		secondDate.set(Calendar.HOUR, 23);
+		return (!date.before(firstDate) && !date.after(secondDate));
 	}
 
 	/**

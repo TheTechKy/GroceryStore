@@ -1,16 +1,21 @@
 package store.facade;
 
 import java.util.Calendar;
+import java.util.Iterator;
 
+import store.entities.Item;
 import store.entities.Member;
+import store.entities.Order;
 import store.entities.Product;
+import store.entities.Transaction;
 
 /**
  * Class DataTransfer is used as an engine for safe data transfer between the
  * front and back end of the business, created to suit the exact needs of this
  * grocery store.
  * 
- * @author
+ * @author Ben Hines, Carter Clark, Chris Lara-Batencourt, Pavel Danek, Ricky
+ *         Nguyen
  *
  */
 public class DataTransfer {
@@ -28,7 +33,14 @@ public class DataTransfer {
 	private int productReorderLevel;
 	private int orderQuantity;
 	private String orderId;
-	private String list;
+	private boolean orderIsOutstanding;
+	private Calendar dateOfOrder;
+	private Iterator<Item> itemsList;
+	private double totalPrice;
+	private Calendar transactionDate;
+	private int itemQuantity;
+	private double unitPrice;
+	private double itemPrice;
 
 	public DataTransfer() {
 		reset();
@@ -51,7 +63,62 @@ public class DataTransfer {
 		productReorderLevel = 0;
 		orderQuantity = 0;
 		orderId = "";
-		list = "";
+		orderIsOutstanding = false;
+		dateOfOrder = null;
+		itemsList = null;
+		totalPrice = 0.0;
+		transactionDate = null;
+		itemQuantity = 0;
+		unitPrice = 0.0;
+		itemPrice = 0.0;
+	}
+
+	public Calendar getTransactionDate() {
+		return transactionDate;
+	}
+
+	public void setTransactionDate(Calendar transactionDate) {
+		this.transactionDate = transactionDate;
+	}
+
+	public Iterator<Item> getItemsList() {
+		return itemsList;
+	}
+
+	public void setItemsList(Iterator<Item> itemsList) {
+		this.itemsList = itemsList;
+	}
+
+	public double getTotalPrice() {
+		return totalPrice;
+	}
+
+	public void setTotalPrice(double totalPrice) {
+		this.totalPrice = totalPrice;
+	}
+
+	public int getItemQuantity() {
+		return itemQuantity;
+	}
+
+	public void setItemQuantity(int itemQuantity) {
+		this.itemQuantity = itemQuantity;
+	}
+
+	public double getUnitPrice() {
+		return unitPrice;
+	}
+
+	public void setUnitPrice(double unitPrice) {
+		this.unitPrice = unitPrice;
+	}
+
+	public double getItemPrice() {
+		return itemPrice;
+	}
+
+	public void setItemPrice(double itemPrice) {
+		this.itemPrice = itemPrice;
 	}
 
 	public String getMemberName() {
@@ -158,12 +225,16 @@ public class DataTransfer {
 		this.orderId = orderId;
 	}
 
-	public String getList() {
-		return list;
+	public boolean getIsOutstanding() {
+		return orderIsOutstanding;
 	}
 
-	public void setList(String list) {
-		this.list = list;
+	public Calendar getDateOfOrder() {
+		return dateOfOrder;
+	}
+
+	public Iterator<Item> getTransactionsItemsList() {
+		return itemsList;
 	}
 
 	/**
@@ -195,6 +266,45 @@ public class DataTransfer {
 		productStockOnHand = product.getStockOnHand();
 		productCurrentPrice = product.getCurrentPrice();
 		productReorderLevel = product.getReorderLevel();
+	}
+
+	/**
+	 * Sets all order fields with data from given Order object
+	 * 
+	 * @param order - the Order object to fill the data with
+	 */
+	public void setOrderFields(Order order) {
+		orderId = order.getOrderNumber();
+		productName = order.getProductName();
+		productId = order.getProductId();
+		dateOfOrder = order.getDateOfOrder();
+		orderQuantity = order.getQuantity();
+		orderIsOutstanding = order.isOutstanding();
+	}
+
+	/**
+	 * Sets all transaction fields with data from given Transaction object
+	 * 
+	 * @param order - the Transaction object to fill the data with
+	 */
+	public void setTransactionFields(Transaction transaction) {
+		this.itemsList = transaction.getItems();
+		this.memberId = transaction.getMemberId();
+		this.totalPrice = transaction.getTotalPrice();
+		this.transactionDate = transaction.getDate();
+	}
+
+	/**
+	 * Sets all item fields with data from given item object
+	 * 
+	 * @param item - the Item which to fill the data with
+	 */
+	public void setItemFields(Item item) {
+		this.productName = item.getName();
+		this.productId = item.getProductId();
+		this.itemQuantity = item.getQuantity();
+		this.unitPrice = item.getUnitPrice();
+		this.itemPrice = item.getItemPrice();
 	}
 
 }
